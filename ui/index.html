@@ -60,7 +60,8 @@
 					header.children[index + 1].innerText = formatDate(date)
 				})
 
-				patients_list.forEach((patient) => {
+				patients_list.forEach((entries) => {
+					const patient = entries[0]
 					const row = document.getElementById(patient.id)
 
 					dates.forEach((date, index) => {
@@ -82,10 +83,13 @@
 			}
 
 			function dateSelected(new_date) {
-				let field = document.querySelector('#date-select')
+
+				dates = dates.map(date =>
+					new Date(new_date.valueOf())
+				)
 
 				dates.forEach((date, index) => {
-					date.setDate( new_date.getDate() + index );
+					date.setDate( date.getDate() + index );
 				})
 
 				refreshTable(patients_list, dates)
@@ -150,16 +154,19 @@
 			}
 
 			invoke('get_patients')
-				.then((patients) => {
-					console.log(patients)
-					patients_list = patients
+				.then((data) => {
+					console.log(data)
+					patients_list = data
 
-					patients_list.forEach((patient) => {
+					patients_list.forEach((entries) => {
+						const patient = entries[0]
+						const detection = entries[1]
+
 						const row = document.createElement('tr')
 						row.classList.add('data-row')
 						row.id = patient.id
 
-						if (patient.aki_score !== 0)
+						if (detection.aki_score !== 0)
 							row.classList.add('aki')
 
 						row.onclick = () => {

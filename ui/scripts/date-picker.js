@@ -21,7 +21,7 @@ function AddDatePickers() {
 }
 
 function AddCalendarDays(Year, Month, Object) {
-
+    
     if (Object) { window.DateObject = Object }
 
     if (!window.DatePickerHolder) {
@@ -166,8 +166,8 @@ function ClearDatePicker() {
     if (window.DatePickerTable) {
         window.DatePickerTable.style.display = 'none';
     }
-    window.Month = null;
-    window.Year = null;
+    // window.Month = null;
+    // window.Year = null;
 }
 
 function FormatDate(DateString) {

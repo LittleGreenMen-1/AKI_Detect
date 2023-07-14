@@ -118,32 +118,28 @@
                         patient_id = id
 
                         invoke("get_patient", { id: patient_id })
-                            .then((patient) => {
+                            .then((entry) => {
+                                let patient = entry[0]
+                                let detection = entry[1]
+
+                                console.log(detection)
+
                                 document.querySelector('h1').innerHTML = `Patient: ${patient.name}`
 
-                                if (patient.aki_score > 0) {
+                                if (detection.aki_score > 0) {
                                     document.querySelector('.aki-banner').style.display = 'block'
 
-                                    document.querySelector('.title').innerHTML = `AKI ${patient.aki_score} DETECTED`
+                                    document.querySelector('.title').innerHTML = `AKI ${detection.aki_score} DETECTED`
                                     document.querySelector('#patient-name').innerHTML = patient.name.toUpperCase()
 
-                                    var latest = 0;
-                                    var latest_level = 0;
-
-                                    Object.entries(patient.s_cr_levels).forEach(([timestamp, level]) => {
-                                        if (timestamp > latest) {
-                                            latest = timestamp
-                                            latest_level = level
-                                        }
-                                    })
-
-                                    document.querySelector('#patient-sCr').innerHTML = `${latest_level.toFixed(2)}mg/dL`
+                                    document.querySelector('#patient-sCr').innerHTML = `${detection.max_level.toFixed(2)}mg/dL`
                                     
-                                    let diff = patient.difference.toFixed(2)
-                                    let percentage = (latest_level / (latest_level - diff)).toFixed(2)
+                                    let diff = (detection.max_level - detection.baseline).toFixed(2);
+                                    let percentage = (detection.max_level / (detection.baseline)).toFixed(2)
                                     document.querySelector('#patient-diff').innerHTML = `+${diff}mg/dL (x${percentage} or ${percentage * 100}%)`
 
-                                    let date = new Date
+                                    let date = new Date(detection.timestamp * 1000)
+
                                     let year = date.getFullYear()
                                     let month = date.getMonth() + 1
                                     let day = date.getDate()

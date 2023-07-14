@@ -4,7 +4,7 @@
 // mod error;
 mod database;
 
-use database::{DataBase, Patient, MyResult};
+use database::{DataBase, Patient, Detection, MyResult};
 
 use std::sync::Mutex;
 use tauri::State;
@@ -14,7 +14,7 @@ struct Note(Mutex<i64>);
 static mut DB: DataBase = DataBase::new();
 
 #[tauri::command]
-async fn get_patients() -> Vec<Patient> {
+async fn get_patients() -> Vec<(Patient, Detection)> {
 
 	unsafe {
 		let patients = DB.fetch_patients().await;
@@ -79,10 +79,10 @@ fn get_id(state: State<Note>) -> i64 {
 }
 
 #[tauri::command]
-async fn get_patient(id: i64) -> Result<Patient, ()> {
+async fn get_patient(id: i64) -> Result<(Patient, Detection), ()> {
 	
 	unsafe {
-		let patient = DB.find_patient(id).await;
+		let patient = DB.fetch_patient(id).await;
 
 		match patient {
 			Ok(result) => {
@@ -90,7 +90,7 @@ async fn get_patient(id: i64) -> Result<Patient, ()> {
 			},
 			Err(e) => {
 				println!("Error fetching patient: {}", e);
-				return Ok(Patient::new("".to_string()));
+				return Ok((Patient::new("".to_string()), Detection::new()));
 			},
 		}
 	}
@@ -100,7 +100,7 @@ async fn get_patient(id: i64) -> Result<Patient, ()> {
 #[tokio::main]
 async fn main() -> MyResult<()> {
 	unsafe {
-		DB = DataBase::init().await?;
+		DB = DataBase::load().await?;
 	}
 
 	tauri::Builder::default()

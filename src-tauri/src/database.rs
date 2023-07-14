@@ -4,7 +4,6 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::time::{SystemTime, UNIX_EPOCH};
 use rand::Rng;
-use unix_ts::Timestamp;
 
 // Define custom error type
 #[derive(Debug)]
@@ -26,13 +25,7 @@ pub type MyResult<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 pub struct Patient {
     id: i64,
 	pub name: String,
-	pub s_cr_levels: BTreeMap<String, f32>,
-
-	#[serde(skip_deserializing)]
-    pub aki_score: i32,
-
-	#[serde(skip_deserializing)]
-	pub difference: f32,
+	pub s_cr_levels: BTreeMap<i64, f32>,
 }
 
 impl Patient {
@@ -49,21 +42,150 @@ impl Patient {
 		Self {
 			id: current_timestamp,
 			name,
-			s_cr_levels: BTreeMap::new(),
-            aki_score: 0,
-			difference: 0.0,
+			s_cr_levels: BTreeMap::new()
+		}
+	}
+}
+
+// The Detection struct
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Detection {
+	pub patient_id: i64,
+	pub timestamp: i64,
+	pub baseline: f32,
+	pub max_level: f32,
+	pub aki_score: i32
+}
+
+impl Detection {
+	pub fn new() -> Self {
+		Self {
+			patient_id: 0,
+			timestamp: 0,
+			baseline: 0.0,
+			max_level: 0.0,
+			aki_score: 0
 		}
 	}
 
-    pub fn set_aki(&mut self, (aki_score, difference): (i32, f32)) {
-        self.aki_score = aki_score;
-		self.difference = difference;
-    }
+	pub fn detect(patient: &Patient) -> Self {
+		let times: Vec<i64> = patient.s_cr_levels.keys().cloned().collect();
+		let levels: Vec<f32> = patient.s_cr_levels.values().cloned().collect();
+	
+		// Find baseline creatinine
+		let mut baseline = f32::MAX;
+
+		levels.iter().for_each(|v| {
+			if *v < baseline {
+				baseline = *v;
+			}
+		});
+
+		// Check for AKI : increase of more than 0.3 mg/dl within 48 hours
+		let mut i = 0;
+		
+		while i < times.len() {
+			let date_i = times[i];
+
+			let mut j = i + 1;
+
+			while j < times.len() {
+				let date_j = times[j];
+
+				if (date_j - date_i) > 172800 { // more than 48h
+					break;
+				}
+
+				let diff = levels[j] - levels[i];
+
+				if diff >= 0.3 { // AKI detected
+					// Find what type of AKI it is
+					let curr_level = levels[j];
+					let mut aki_score = 0;
+					
+					if curr_level >= (baseline * 1.5) {
+						aki_score = 1;
+					}
+					
+					if curr_level >= (baseline * 2.0) {
+						aki_score = 2;
+					}
+					
+					if curr_level >= (baseline * 3.0) {
+						aki_score = 3;
+					}
+
+					return Self {
+						patient_id: patient.id,
+						timestamp: date_j,
+						baseline,
+						max_level: curr_level,
+						aki_score,
+					};
+				}
+
+				j += 1;
+			}
+
+			i += 1;
+		}
+
+		// Check for AKI : increase of more than 1.5 times baseline within 7 days
+		let mut i = 0;
+
+		while i < times.len() {
+			let date_i = times[i];
+
+			let mut j = i + 1;
+
+			while j < times.len() {
+				let date_j = times[j];
+
+				if (date_j - date_i) > 604800 { // more than 7 days
+					break;
+				}
+
+				let diff = levels[j] - levels[i];
+
+				if diff >= baseline * 1.5 {
+					// Find what type of AKI it is
+					let curr_level = levels[j];
+					let mut aki_score = 0;
+					
+					if curr_level >= (baseline * 1.5) {
+						aki_score = 1;
+					}
+
+					if curr_level >= (baseline * 2.0) {
+						aki_score = 2;
+					}
+
+					if curr_level >= (baseline * 3.0) {
+						aki_score = 3;
+					}
+
+					return Self {
+						patient_id: patient.id,
+						timestamp: date_j,
+						baseline,
+						max_level: curr_level,
+						aki_score,
+					};
+				}
+
+				j += 1;
+			}
+
+			i += 1;
+		}
+
+		return Detection::new();
+	}
 }
 
 // Database Model
 pub struct DataBase {
-	pub data: Vec<Patient>,
+	pub data: Vec<(Patient, Detection)>,
     file_path: String,
 }
 
@@ -75,7 +197,7 @@ impl DataBase {
 		}
 	}
 
-	pub async fn init() -> MyResult<Self> {
+	pub async fn load() -> MyResult<Self> {
 		// Check if database file exists
 		let file_path = "database.json";
 
@@ -84,13 +206,14 @@ impl DataBase {
                 // Read data from file
                 let data = fs::read_to_string(file_path)?;
                 let mut patients: Vec<Patient> = serde_json::from_str(&data)?;
+				let mut entries: Vec<(Patient, Detection)> = Vec::new();
 
                 patients.iter_mut().for_each(|p|
-					p.set_aki( detect_aki(&p) )
+					entries.push( (p.clone(), Detection::detect(p)) )
                 );
                 
                 Ok(Self {
-                    data: patients,
+                    data: entries,
                     file_path: file_path.to_string(),
                 })
             }
@@ -106,27 +229,37 @@ impl DataBase {
 		}
 	}
 
-    pub async fn fetch_patients(&self) -> MyResult<Vec<Patient>> {
+	pub async fn save(&self) -> MyResult<()> {
+		let patients: Vec<Patient> = self.data.iter().map(|(p, _)| p.clone()).collect();
+        let data = serde_json::to_string(&patients)?;
+
+        fs::write(&self.file_path, data)?;
+
+        Ok(())
+    }
+
+    pub async fn fetch_patients(&self) -> MyResult<Vec<(Patient, Detection)>> {
         Ok(self.data.clone())
     }
 
-    pub async fn find_patient(&self, id: i64) -> MyResult<Patient> {
-        let patient = self.data.iter().find(|p| p.id == id);
+    pub async fn fetch_patient(&self, id: i64) -> MyResult<(Patient, Detection)> {
+        let entry = self.data.iter().find(|(p, _)| p.id == id);
 
-        match patient {
+        match entry {
             Some(p) => Ok(p.clone()),
             None => Err(Box::new(MyError("Patient not found".into()))),
         }
     }
 
     pub async fn add_patient(&mut self, patient: Patient) -> MyResult<()> {
-		self.data.push(patient);
+		let detection = Detection::detect(&patient);
+		self.data.push((patient, detection));
 
         Ok(())
     }
 
     pub async fn update_patient(&mut self, id: i64, level: f32) -> MyResult<()> {
-        let index = self.data.iter().position(|p| p.id == id);
+        let index = self.data.iter().position(|(p, _)| p.id == id);
 
 		let current_timestamp = SystemTime::now()
 			.duration_since(UNIX_EPOCH)
@@ -135,23 +268,35 @@ impl DataBase {
 		
         match index {
             Some(i) => {
-				let keys: Vec<_> = self.data[i].s_cr_levels.keys().cloned().collect();
-				let latest_key = keys.last().unwrap().to_string();
-				let latest_timestamp = latest_key.parse::<i64>().unwrap();
+				let keys: Vec<_> = self.data[i].0.s_cr_levels.keys().cloned().collect();
+				let latest_key = keys.last();
 
-				if same_day(current_timestamp, latest_timestamp) {
-					if let Some(x) = self.data[i].s_cr_levels.get_mut(&latest_key) {
-						*x = level;
-					}
-				} else {
-					self.data[i].s_cr_levels.insert(
-						current_timestamp.to_string(),
-						level
-					);
+				match latest_key {
+					Some(timestamp) => {
+						if same_day(current_timestamp, *timestamp) {
+							if let Some(x) = self.data[i].0.s_cr_levels.get_mut(&timestamp) {
+								*x = level;
+							}
+						} else {
+							self.data[i].0.s_cr_levels.insert(
+								current_timestamp,
+								level
+							);
+						}
+		
+						let detection = Detection::detect(&self.data[i].0);
+						*&mut self.data[i].1 = detection;
+					},
+					None => {
+						self.data[i].0.s_cr_levels.insert(
+							current_timestamp,
+							level
+						);
+	
+						let detection = Detection::detect(&self.data[i].0);
+						*&mut self.data[i].1 = detection;
+					},
 				}
-
-                let p = &mut self.data[i];
-                p.set_aki( detect_aki(&p) );
 
                 Ok(())
             }
@@ -160,7 +305,7 @@ impl DataBase {
     }
 
     pub async fn delete_patient(&mut self, id: i64) -> MyResult<()> {
-        let index = self.data.iter().position(|p| p.id == id);
+        let index = self.data.iter().position(|(p, _)| p.id == id);
 
         match index {
             Some(i) => {
@@ -169,14 +314,6 @@ impl DataBase {
             }
             None => Err(Box::new(MyError("Patient not found".into()))),
         }
-    }
-
-    pub async fn save(&self) -> MyResult<()> {
-        let data = serde_json::to_string(&self.data)?;
-
-        fs::write(&self.file_path, data)?;
-
-        Ok(())
     }
 }
 
@@ -278,113 +415,113 @@ fn same_day(day1: i64, day2: i64) -> bool {
 	return date1 == date2;
 }
 
-fn detect_aki(p: &Patient) -> (i32, f32) {
-	let levels = &p.s_cr_levels;
+// fn detect_aki(p: &Patient) -> (i32, f32) {
+// 	let levels = &p.s_cr_levels;
 	
-	// Find baseline creatinine
-	let mut baseline = f32::MAX;
+// 	// Find baseline creatinine
+// 	let mut baseline = f32::MAX;
 
-	levels.values().for_each(|v| {
-		if *v < baseline {
-			baseline = *v;
-		}
-	});
+// 	levels.values().for_each(|v| {
+// 		if *v < baseline {
+// 			baseline = *v;
+// 		}
+// 	});
 
-	// Check for AKI : increase of more than 0.3 mg/dl within 48 hours
-	let mut i = 0;
+// 	// Check for AKI : increase of more than 0.3 mg/dl within 48 hours
+// 	let mut i = 0;
 	
-	while i < levels.len() {
-		let date_i = Timestamp::from(
-			levels.keys().nth(i).unwrap()
-				.parse::<i64>().unwrap()
-		);
+// 	while i < levels.len() {
+// 		let date_i = Timestamp::from(
+// 			levels.keys()[i]
+// 				.parse::<i64>().unwrap()
+// 		);
 
-		let mut j = i + 1;
+// 		let mut j = i + 1;
 
-		while j < levels.len() {
-			let date_j = Timestamp::from(
-				levels.keys().nth(j).unwrap()
-					.parse::<i64>().unwrap()
-			);
+// 		while j < levels.len() {
+// 			let date_j = Timestamp::from(
+// 				levels.keys()[j]
+// 					.parse::<i64>().unwrap()
+// 			);
 
-			if (date_j - date_i).seconds() > 172800 { // more than 48h
-				break;
-			}
+// 			if (date_j - date_i).seconds() > 172800 { // more than 48h
+// 				break;
+// 			}
 
-			let diff = levels.values().nth(j).unwrap() - levels.values().nth(i).unwrap();
+// 			let diff = levels.values()[j] - levels.values()[i];
 
-			if diff >= 0.3 { // AKI detected
-				// Find what type of AKI it is
-				let curr_level = levels.values().nth(j).unwrap();
+// 			if diff >= 0.3 { // AKI detected
+// 				// Find what type of AKI it is
+// 				let curr_level = levels.values()[j];
 
-				if curr_level >= &(baseline * 3.0) {
-					return (3, diff);
-				}
+// 				if curr_level >= &(baseline * 3.0) {
+// 					return (3, diff);
+// 				}
 
-				if curr_level >= &(baseline * 2.0) {
-					return (2, diff);
-				}
+// 				if curr_level >= &(baseline * 2.0) {
+// 					return (2, diff);
+// 				}
 
-				if curr_level >= &(baseline * 1.5) {
-					return (1, diff);
-				}
+// 				if curr_level >= &(baseline * 1.5) {
+// 					return (1, diff);
+// 				}
 
-				return (3, diff);
-			}
+// 				return (3, diff);
+// 			}
 
-			j += 1;
-		}
+// 			j += 1;
+// 		}
 
-		i += 1;
-	}
+// 		i += 1;
+// 	}
 
-	// Check for AKI : increase of more than 1.5 times baseline within 7 days
-	let mut i = 0;
+// 	// Check for AKI : increase of more than 1.5 times baseline within 7 days
+// 	let mut i = 0;
 
-	while i < levels.len() {
-		let date_i = Timestamp::from(
-			levels.keys().nth(i).unwrap()
-				.parse::<i64>().unwrap()
-		);
+// 	while i < levels.len() {
+// 		let date_i = Timestamp::from(
+// 			levels.keys()[i]
+// 				.parse::<i64>().unwrap()
+// 		);
 
-		let mut j = i + 1;
+// 		let mut j = i + 1;
 
-		while j < levels.len() {
-			let date_j = Timestamp::from(
-				levels.keys().nth(j).unwrap()
-					.parse::<i64>().unwrap()
-			);
+// 		while j < levels.len() {
+// 			let date_j = Timestamp::from(
+// 				levels.keys()[j]
+// 					.parse::<i64>().unwrap()
+// 			);
 
-			if (date_j - date_i).seconds() > 604800 { // more than 7 days
-				break;
-			}
+// 			if (date_j - date_i).seconds() > 604800 { // more than 7 days
+// 				break;
+// 			}
 
-			let diff = levels.values().nth(j).unwrap() - levels.values().nth(i).unwrap();
+// 			let diff = levels.values()[j] - levels.values()[i];
 
-			if diff >= baseline * 1.5 {
-				// Find what type of AKI it is
-				let curr_level = levels.values().nth(j).unwrap();
+// 			if diff >= baseline * 1.5 {
+// 				// Find what type of AKI it is
+// 				let curr_level = levels.values()[j];
 
-				if curr_level >= &(baseline * 3.0) {
-					return (3, diff);
-				}
+// 				if curr_level >= &(baseline * 3.0) {
+// 					return (3, diff);
+// 				}
 
-				if curr_level >= &(baseline * 2.0) {
-					return (2, diff);
-				}
+// 				if curr_level >= &(baseline * 2.0) {
+// 					return (2, diff);
+// 				}
 
-				if curr_level >= &(baseline * 1.5) {
-					return (1, diff);
-				}
+// 				if curr_level >= &(baseline * 1.5) {
+// 					return (1, diff);
+// 				}
 
-				return (3, diff);
-			}
+// 				return (3, diff);
+// 			}
 
-			j += 1;
-		}
+// 			j += 1;
+// 		}
 
-		i += 1;
-	}
+// 		i += 1;
+// 	}
 
-	return (0, 0.0);
-}
+// 	return (0, 0.0);
+// }
