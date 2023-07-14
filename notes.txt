@@ -1,0 +1,4 @@
+Detection timestamp: data cand a fost detectata cresterea
+48h diff: diferenta din detectie
+
+Pentru mesajeel din To Do: sa fie citite dintr-un fisier

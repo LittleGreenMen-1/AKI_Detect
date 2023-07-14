@@ -1,0 +1,85 @@
+body, html {
+    user-select: none;
+}
+
+table {
+    font-family: arial, sans-serif;
+    border-collapse: collapse;
+    width: 100%;
+}
+
+td, th {
+    border: 1px solid #dddddd;
+    text-align: left;
+    padding: 8px;
+}
+
+th {
+    text-align: center;
+}
+
+.nav-pick-date {
+    cursor: pointer;
+    text-align: center;
+
+    font-weight: bold;
+    font-size: 20px;
+}
+
+.nav-pick-date:hover {
+    background-color: #f2f2f2;
+}
+
+input[type="date"] {
+    background: none;
+    /* visibility: hidden; */
+
+    width: 100%;
+
+    border: none;
+    outline: none;
+
+    cursor: pointer;
+}
+
+.nav-button {
+    cursor: pointer;
+    text-align: center;
+    font-weight: bold;
+
+    color: gray;
+}
+
+.nav-button:hover {
+    background-color: gray;
+    color: white;
+}
+
+tr.data-row {
+    color: black;
+}
+
+tr.data-row td:not(:nth-child(1)) {
+    text-align: right;
+}
+
+tr.data-row:hover {
+    background-color: #dddddd;
+    cursor: pointer;
+}
+
+tr.add-row {
+    color: gray;
+    font-weight: bold;
+}
+
+tr.add-row:hover {
+    cursor: pointer;
+
+    color: white;
+    background-color: gray;
+}
+
+.aki {
+    background-color: rgba(255, 45, 45, 0.692);
+}

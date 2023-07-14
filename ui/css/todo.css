@@ -1,0 +1,105 @@
+html, body {
+    color: rgb(255, 255, 255);
+
+    font-family: "Lucida Console", Courier, monospace;
+    font-size: large;
+    /* font-weight: 600; */
+}
+
+h2, h3 {
+    text-align: center;
+
+    margin: 0;
+    padding: 0;
+}
+
+a {
+    text-decoration: none;
+    color: black;
+    display: inline-block;
+    padding: 8px 16px;
+}
+
+.back {
+    background-color: #f1f1f1;
+    color: black;
+}
+
+.back:hover {
+    background-color: #ddd;
+    color: black;
+}
+
+.centre {
+    display: flex;
+    justify-content: center;
+    flex-direction: column;
+
+    width: 100%;
+}
+
+.container {
+    width: 75%;
+    margin: 1px auto;
+
+    border: 1px solid black;
+    border-radius: 10px;
+
+    padding: 10px;
+}
+
+ul {
+    list-style-type: none;
+    /* margin-left: 10px; */
+}
+
+ol {
+    margin-left: 10px;
+}
+
+.arrow {
+    color: green;
+    font-weight: bold;
+    font-size: x-large;
+}
+
+table {
+    background-color: #c7a3d1;
+    border-collapse: collapse;
+    width: 100%;
+}
+
+td, th {
+    border: 2px solid #684563;
+    text-align: center;
+    padding: 8px;
+
+    color: black;
+    font-weight: bold;
+}
+
+.row {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+}
+
+.left {
+    text-align: left;
+
+    width: 40%;
+
+    margin: 0;
+    padding: 10px;
+
+    border-right: 1px solid black;
+}
+
+.right {
+    margin: 0;
+    padding: 10px;
+
+    width: 60%;
+
+    border-left: 1px solid black;
+}

@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>AKI Detector</title>
+        <link rel="stylesheet" href="../css/patient.css" />
+    </head>
+    <body>
+        <a href="../index.html" class="back">&#8249; Back</a>
+        <a href="#" class="delete">Delete Patient Data</a>
+        <h1>Patient: Name</h1>
+
+        <label for="level">New reading: </label>
+        <input type="text" placeholder="sCr Level (mg/dL)" />
+        <a href="#" class="add">+ Add</a>
+        <br/>
+        <br/>
+
+        <div class="centre">
+            <div class="aki-banner">
+                <h1 class="title">AKI No DETECTED</h1>
+
+                <div class="row">
+                    <div>
+                        <p>Patient:</p>
+                    </div>
+                    <div>
+                        <p id="patient-name"></p>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div>
+                        <p>Serum Creatinine:</p>
+                    </div>
+                    <div>
+                        <p id="patient-sCr"></p>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div>
+                        <p>48h difference:</p>
+                    </div>
+                    <div>
+                        <p id="patient-diff"></p>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div>
+                        <p>Detection timestamp:</p>
+                    </div>
+                    <div>
+                        <p id="patient-timestamp"></p>
+                    </div>
+                </div>
+
+                <div class="row-right">
+                    <p></p>
+                    <div>
+                        <a class="todo" href="todo.html">To Do</a>
+                        <button class="analyse">Analyse</button>
+                    </div>
+                </div>
+
+
+                <table class="values">
+                    <caption>Serum Creatinine values over time</caption>
+                </table>
+            </div>
+        </div>
+
+        <script>
+			const { invoke } = window.__TAURI__.tauri
+
+            patient_id = 0;
+
+            function ready(fn) {
+                if (document.readyState !== 'loading') {
+                    fn();
+                    return;
+                }
+
+                document.addEventListener('DOMContentLoaded', fn);
+            }
+
+            function makeTable(patient) {
+                const header = document.createElement('tr')
+                const row = document.createElement('tr')
+
+                header.innerHTML = `<th>Patient Name</th>`
+                
+                const name = document.createElement('td')
+                name.innerText = patient.name
+                row.appendChild(name)
+
+                Object.entries(patient.s_cr_levels).forEach(([timestamp, level]) => {
+                    const date = new Date(parseInt(timestamp * 1000))
+                    const header_cell = document.createElement('th')
+                    const data_cell = document.createElement('td')
+
+                    header_cell.innerText = `${date.getDate()}.${date.getMonth() + 1}.${date.getFullYear()}`
+                    header.appendChild(header_cell)
+
+                    data_cell.innerText = level.toFixed(2)
+                    row.appendChild(data_cell)
+                })
+
+                document.querySelector('.values').appendChild(header)
+                document.querySelector('.values').appendChild(row)
+            }
+
+            ready(() => {
+                invoke("get_id")
+                    .then((id) => {
+                        patient_id = id
+
+                        invoke("get_patient", { id: patient_id })
+                            .then((patient) => {
+                                document.querySelector('h1').innerHTML = `Patient: ${patient.name}`
+
+                                if (patient.aki_score > 0) {
+                                    document.querySelector('.aki-banner').style.display = 'block'
+
+                                    document.querySelector('.title').innerHTML = `AKI ${patient.aki_score} DETECTED`
+                                    document.querySelector('#patient-name').innerHTML = patient.name.toUpperCase()
+
+                                    var latest = 0;
+                                    var latest_level = 0;
+
+                                    Object.entries(patient.s_cr_levels).forEach(([timestamp, level]) => {
+                                        if (timestamp > latest) {
+                                            latest = timestamp
+                                            latest_level = level
+                                        }
+                                    })
+
+                                    document.querySelector('#patient-sCr').innerHTML = `${latest_level.toFixed(2)}mg/dL`
+                                    
+                                    let diff = patient.difference.toFixed(2)
+                                    let percentage = (latest_level / (latest_level - diff)).toFixed(2)
+                                    document.querySelector('#patient-diff').innerHTML = `+${diff}mg/dL (x${percentage} or ${percentage * 100}%)`
+
+                                    let date = new Date
+                                    let year = date.getFullYear()
+                                    let month = date.getMonth() + 1
+                                    let day = date.getDate()
+                                    let hour = date.getHours()
+                                    let minute = date.getMinutes()
+                                    let second = date.getSeconds()
+
+                                    let timestamp = `${day}.${month}.${year} - ${hour}:${minute}:${second}`
+
+                                    document.querySelector('#patient-timestamp').innerHTML = timestamp
+                                   
+                                    makeTable(patient)
+
+                                    document.querySelector('.analyse').onclick = () => {
+                                        document.querySelector('.values').style.display = 'table'
+                                        document.querySelector('.todo').style.display = 'initial'
+                                    }
+                                }
+                            })
+                    })
+
+                document.querySelector('.add').onclick = () => {
+                    let level = document.querySelector('input').value
+
+                    if (!isNaN(level)) {
+                        invoke("update_patient", { id: patient_id, newLevel: parseFloat(level) })
+                            .then(() => {
+                                // do something with the result
+                                window.location = '../index.html'
+                            })
+                    }
+                }
+
+                document.querySelector('.delete').onclick = () => {
+                    invoke("delete_patient", { id: patient_id })
+                        .then(() => {
+                            // do something with the result
+                            window.location = '../index.html'
+                        })
+                }
+
+            })
+
+        </script>
+
+    </body>
+</html>

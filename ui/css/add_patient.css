@@ -1,0 +1,46 @@
+input {
+    appearance: none;
+    border: 0;
+    padding: 8px 12px 8px 12px;
+    box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.3);
+}
+
+input:hover {
+    box-shadow: inset 0 -1px 0 rgba(0, 0, 0, .5);
+    background-color: rgba(0, 0, 0, .04);
+}
+
+input:focus {
+    outline: none;
+    border-color: inherit;
+    box-shadow: inset 0 -2px 0 rgba(0, 0, 0, .5);
+}
+
+a {
+    text-decoration: none;
+    color: black;
+    display: inline-block;
+    padding: 8px 16px;
+}
+
+.add {
+    color: gray;
+    font-weight: bold;
+
+    padding: 10px;
+}
+
+.add:hover {
+    background-color: gray;
+    color: white;
+}
+
+.back {
+    background-color: #f1f1f1;
+    color: black;
+}
+
+.back:hover {
+    background-color: #ddd;
+    color: black;
+}

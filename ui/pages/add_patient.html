@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>AKI Detector</title>
+        <link rel="stylesheet" href="../css/add_patient.css" />
+    </head>
+    <body>
+        <a href="../index.html" class="back">&#8249; Back</a>
+        <h1>Add patient</h1>
+
+        <input type="text" placeholder="Name" />
+        <a href="#" class="add">+ Add</button>
+        <br/>
+
+        <script>
+			const { invoke } = window.__TAURI__.tauri
+
+            document.querySelector('.add').onclick = () => {
+                let name = document.querySelector('input').value
+
+                if (/^[A-Za-z\s]*$/.test(name) && name !== '') {
+                    invoke("new_patient", { name: name })
+                        .then(() => {
+                            // do something with the result
+                            window.location = '../index.html'
+                        })
+                }
+            }
+
+        </script>
+
+    </body>
+</html>

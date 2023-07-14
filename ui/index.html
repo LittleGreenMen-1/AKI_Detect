@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>AKI Detector</title>
+
+		<link rel="stylesheet" href="css/index.css" />
+		<link rel="stylesheet" href="css/date-picker.css" />
+	</head>
+	<body>
+		<h1>Patients</h1>
+
+		<script src="scripts/date-picker.js"></script>
+		<script>
+			const { invoke } = window.__TAURI__.tauri
+
+			function formatDate(date) {
+				var dd = date.getDate();
+				var mm = date.getMonth()+1;
+				var yyyy = date.getFullYear();
+
+				if(dd<10) {dd='0'+dd}
+				if(mm<10) {mm='0'+mm}
+
+				date = dd + '/' + mm + '/' + yyyy;
+				return date
+			}
+
+			function last7Days() {
+				var result = [];
+
+				for (var i = 6; i >= 0; i--) {
+					var date = new Date();
+					
+					date.setDate( date.getDate() - i );
+					result.push( date )
+				}
+
+				// for (var i = 0; i < 7; i++) {
+				// 	var date = new Date(2023, 6, 1);
+					
+				// 	date.setDate( date.getDate() + i );
+				// 	result.push( date )
+				// }
+
+				return result;
+			}
+
+			function sameDay(date1, date2) {
+				return date1.getFullYear() === date2.getFullYear() &&
+					date1.getMonth() === date2.getMonth() &&
+					date1.getDate() === date2.getDate();
+			}
+
+			function refreshTable(patients, dates) {
+				let header = document.querySelector('tr:nth-child(2)')
+
+				dates.forEach((date, index) => {
+					header.children[index + 1].innerText = formatDate(date)
+				})
+
+				patients_list.forEach((patient) => {
+					const row = document.getElementById(patient.id)
+
+					dates.forEach((date, index) => {
+						const cell = row.children[index + 1]
+
+						cell.innerText = '-'
+						Object.entries(patient.s_cr_levels).forEach(([timestamp, level]) => {
+							let reading_date = new Date(parseInt(timestamp * 1000))
+
+							if (sameDay(reading_date, date)) {
+								cell.innerText = level.toFixed(2)
+							}
+						})
+					})
+				})
+
+				let date_selector = document.querySelector('#date-select')
+				date_selector.innerHTML = formatDate(new Date(dates[0])) + " - " + formatDate(new Date(dates[dates.length - 1]));
+			}
+
+			function dateSelected(new_date) {
+				let field = document.querySelector('#date-select')
+
+				dates.forEach((date, index) => {
+					date.setDate( new_date.getDate() + index );
+				})
+
+				refreshTable(patients_list, dates)
+			}
+
+			let table = document.createElement('table')
+			let nav = document.createElement('tr')
+			let header = document.createElement('tr')
+			let footer = document.createElement('tr')
+
+			nav.innerHTML = `
+				<td style="border: none"></td>
+				<td class="nav-button" id="nav-back">
+					&lt;
+				</td>
+				<td colspan="5" class="nav-pick-date date-picker" id="date-select">
+				</td>
+				<td class="nav-button" id="nav-forward">
+					&gt;
+				</td>
+			`
+
+			header.innerHTML = `<th>Patient</th>`
+
+			let dates = last7Days()
+			dates.forEach((date) => {
+				header.innerHTML += `<th>${date.toLocaleDateString('en-GB')}</th>`
+			})
+
+			footer.innerHTML = `
+				<td style="text-align: center;">
+					+  Add patient
+				</td>
+			`
+			footer.classList.add('add-row')
+			footer.onclick = () => {
+				window.location = `pages/add_patient.html`
+			}
+
+			table.appendChild(nav)
+			table.appendChild(header)
+			table.appendChild(footer)
+			document.body.appendChild(table)
+
+			var patients_list;
+			const date_delta = 1;
+
+			document.querySelector('#nav-back').onclick = () => {
+				dates.forEach((date) => {
+					date.setDate( date.getDate() - date_delta );
+				})
+
+				refreshTable(patients_list, dates)
+			}
+
+			document.querySelector('#nav-forward').onclick = () => {
+				dates.forEach((date) => {
+					date.setDate( date.getDate() + date_delta );
+				})
+
+				refreshTable(patients_list, dates)
+			}
+
+			invoke('get_patients')
+				.then((patients) => {
+					console.log(patients)
+					patients_list = patients
+
+					patients_list.forEach((patient) => {
+						const row = document.createElement('tr')
+						row.classList.add('data-row')
+						row.id = patient.id
+
+						if (patient.aki_score !== 0)
+							row.classList.add('aki')
+
+						row.onclick = () => {
+							invoke('save_id', { id: patient.id }).then(() => {
+								window.location = `pages/patient.html`
+							})
+						}
+
+						const name = document.createElement('td')
+						name.innerText = patient.name
+						row.appendChild(name)
+
+						dates.forEach((date) => {
+							const cell = document.createElement('td')
+							cell.innerText = '-'
+
+							row.appendChild(cell)
+						})
+
+						document.querySelector('table').insertBefore(row, document.querySelector('.add-row'))
+
+					})
+
+					refreshTable(patients_list, dates)
+				})
+			
+		</script>
+	</body>
+</html>
+

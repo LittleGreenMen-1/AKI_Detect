@@ -1,0 +1,170 @@
+input {
+    appearance: none;
+    border: 0;
+    padding: 8px 12px 8px 12px;
+    box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.3);
+}
+
+input:hover {
+    box-shadow: inset 0 -1px 0 rgba(0, 0, 0, .5);
+    background-color: rgba(0, 0, 0, .04);
+}
+
+input:focus {
+    outline: none;
+    border-color: inherit;
+    box-shadow: inset 0 -2px 0 rgba(0, 0, 0, .5);
+}
+
+a {
+    text-decoration: none;
+    color: black;
+    display: inline-block;
+    padding: 8px 16px;
+}
+
+.add {
+    color: gray;
+    font-weight: bold;
+
+    padding: 10px;
+}
+
+.add:hover {
+    background-color: gray;
+    color: white;
+}
+
+.back {
+    background-color: #f1f1f1;
+    color: black;
+}
+
+.back:hover {
+    background-color: #ddd;
+    color: black;
+}
+
+.delete {
+    background-color: #f1f1f1;
+    color: black;
+}
+
+.delete:hover {
+    background-color: rgb(190, 0, 0);
+    color: white;
+}
+
+.centre {
+    display: flex;
+    justify-content: center;
+}
+
+.aki-banner {
+    display: none;
+
+    background-color: rgba(255, 45, 45, 1);
+    color: black;
+    padding: 10px;
+    margin-bottom: 10px;
+
+    width: 75%;
+
+    border: 2px solid black;
+
+    font-family: "Lucida Console", Courier, monospace;
+    font-weight: bold;
+}
+
+.title {
+    text-align: center;
+}
+
+.row {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-around;
+    align-content: stretch;
+    
+    padding: 0;
+    margin: 0;
+}
+
+.row div {
+    flex-grow: 1;
+    text-align: left;
+
+    width: 0;
+}
+
+.row-right {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    
+    padding: 0;
+    margin: 0;
+}
+
+.row p {
+    margin: 0;
+    padding: 0;
+}
+
+.analyse, .todo {
+	color: inherit;
+	font: inherit;
+
+    text-align: center;
+    font-weight: bold;
+
+	border: 2px solid black;
+	outline: inherit;
+
+	padding: 5px 10px;
+    margin-top: 10px;
+	cursor: pointer;
+}
+
+.analyse {
+    background: none;
+}
+
+.analyse:hover {
+    background-color: rgb(119, 0, 0);
+}
+
+.todo {
+    background-color: white;
+
+    display: none;
+}
+
+.todo:hover {
+    background-color: rgb(173, 173, 173);
+}
+
+.values {
+    border-collapse: collapse;
+    width: 100%;
+
+    display: none;
+}
+
+td, th {
+    border: 2px solid black;
+    text-align: center;
+    padding: 8px;
+}
+
+.values caption {
+    font-weight: bold;
+
+    text-align: left;
+
+    border-width: 2px 2px 0px 2px;
+    border-style: solid;
+    border-color: black;
+    
+    padding: 10px 5px 5px 5px;
+}
